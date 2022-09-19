@@ -53,7 +53,6 @@ procinit(void)
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
-      p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
   }
 }
@@ -171,8 +170,8 @@ freeproc(struct proc *p)
   p->state = UNUSED;
 }
 
-// Create a user page table for a given process, with no user memory,
-// but with trampoline and trapframe pages.
+// Create a user page table for a given process,
+// with no user memory, but with trampoline pages.
 pagetable_t
 proc_pagetable(struct proc *p)
 {
@@ -193,8 +192,7 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
-  // map the trapframe page just below the trampoline page, for
-  // trampoline.S.
+  // map the trapframe just below TRAMPOLINE, for trampoline.S.
   if(mappages(pagetable, TRAPFRAME, PGSIZE,
               (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
@@ -259,12 +257,12 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint64 sz;
+  uint sz;
   struct proc *p = myproc();
 
   sz = p->sz;
   if(n > 0){
-    if((sz = uvmalloc(p->pagetable, sz, sz + n, PTE_W)) == 0) {
+    if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
   } else if(n < 0){
@@ -390,7 +388,7 @@ exit(int status)
 int
 wait(uint64 addr)
 {
-  struct proc *pp;
+  struct proc *np;
   int havekids, pid;
   struct proc *p = myproc();
 
@@ -399,32 +397,32 @@ wait(uint64 addr)
   for(;;){
     // Scan through table looking for exited children.
     havekids = 0;
-    for(pp = proc; pp < &proc[NPROC]; pp++){
-      if(pp->parent == p){
+    for(np = proc; np < &proc[NPROC]; np++){
+      if(np->parent == p){
         // make sure the child isn't still in exit() or swtch().
-        acquire(&pp->lock);
+        acquire(&np->lock);
 
         havekids = 1;
-        if(pp->state == ZOMBIE){
+        if(np->state == ZOMBIE){
           // Found one.
-          pid = pp->pid;
-          if(addr != 0 && copyout(p->pagetable, addr, (char *)&pp->xstate,
-                                  sizeof(pp->xstate)) < 0) {
-            release(&pp->lock);
+          pid = np->pid;
+          if(addr != 0 && copyout(p->pagetable, addr, (char *)&np->xstate,
+                                  sizeof(np->xstate)) < 0) {
+            release(&np->lock);
             release(&wait_lock);
             return -1;
           }
-          freeproc(pp);
-          release(&pp->lock);
+          freeproc(np);
+          release(&np->lock);
           release(&wait_lock);
           return pid;
         }
-        release(&pp->lock);
+        release(&np->lock);
       }
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || killed(p)){
+    if(!havekids || p->killed){
       release(&wait_lock);
       return -1;
     }
@@ -603,25 +601,6 @@ kill(int pid)
   return -1;
 }
 
-void
-setkilled(struct proc *p)
-{
-  acquire(&p->lock);
-  p->killed = 1;
-  release(&p->lock);
-}
-
-int
-killed(struct proc *p)
-{
-  int k;
-  
-  acquire(&p->lock);
-  k = p->killed;
-  release(&p->lock);
-  return k;
-}
-
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.
 // Returns 0 on success, -1 on error.
@@ -660,7 +639,6 @@ procdump(void)
 {
   static char *states[] = {
   [UNUSED]    "unused",
-  [USED]      "used",
   [SLEEPING]  "sleep ",
   [RUNNABLE]  "runble",
   [RUNNING]   "run   ",
