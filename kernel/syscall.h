@@ -20,3 +20,7 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+//New system calls, copied from project document
+#define SYS_startlog 22 
+#define SYS_getlog   23 
+#define SYS_nice     24 

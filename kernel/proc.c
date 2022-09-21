@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "log.h"
 
 struct cpu cpus[NCPU];
 
@@ -13,6 +14,10 @@ struct proc proc[NPROC];
 struct proc *initproc;
 
 int nextpid = 1;
+
+//Keeps track of the current tick
+int ticktimer = 0;
+
 struct spinlock pid_lock;
 
 extern void forkret(void);
@@ -25,6 +30,55 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+
+struct logentry schedlog[LOG_SIZE]; 
+//boolean value. 1 if logging, 0 if not
+int is_logging = 0;
+//index of the next log struct to be placed in the array.
+int next_log_index = 0;
+
+uint64 
+sys_startlog(void) 
+{ 
+  if (is_logging) return -1;
+  is_logging = 1;  
+  return 0;
+} 
+ 
+uint64 
+sys_getlog(void) { 
+    uint64 userlog; // hold the virtual (user) address of 
+                    // user’s copy of the log 
+    // set userlog to the argument passed by the user 
+    if (argaddr(0, &userlog) < 0) 
+        return -1; 
+ 
+    // copy the log from kernel memory to user memory 
+    struct proc *p = myproc(); 
+    if (copyout(p->pagetable, userlog, (char *)schedlog, 
+            sizeof(struct logentry)*LOG_SIZE) < 0) 
+        return -1; 
+ 
+    return next_log_index;
+} 
+ 
+ 
+int 
+sys_nice(void) { 
+  int inc; // the increment 
+  // set inc to the argument passed by the user 
+  argint(0, &inc); 
+ 
+  // get the current user process 
+  struct proc *p = myproc(); 
+  p->nice += inc;
+  
+  //clamp value to range
+  if (p->nice > 19) p->nice = 19;
+  if (p->nice < -20) p->nice = -20;
+  
+  return p->nice;
+}
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -123,6 +177,9 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+
+  // Initialize nice value of new proc to 0
+  p->nice = 0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -453,6 +510,16 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
+        // Log the process switch
+        schedlog[next_log_index].pid = p->pid;
+        schedlog[next_log_index].time = ticktimer;
+        next_log_index += 1;
+        // Stop logging if buffer is full
+        if (next_log_index == LOG_SIZE) {
+          is_logging = 0;
+          //TODO figure out if this should reset next_log_index
+        }
+
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
@@ -503,6 +570,7 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  ticktimer += 1;
   sched();
   release(&p->lock);
 }

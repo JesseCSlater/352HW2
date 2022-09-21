@@ -104,6 +104,10 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
+//Function definitions for new sys calls. Copied from project doc
+extern uint64 sys_startlog(void); 
+extern uint64 sys_getlog(void); 
+extern uint64 sys_nice(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -127,6 +131,10 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+//Funciton pointers to new sys calls. Copied from project doc
+[SYS_startlog] sys_startlog, 
+[SYS_getlog]  sys_getlog, 
+[SYS_nice]    sys_nice, 
 };
 
 void
