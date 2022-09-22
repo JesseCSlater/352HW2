@@ -1,3 +1,11 @@
+/**
+ * @file nice.c
+ * @author John Mindrup
+ * @brief 
+ * Adds the nice command line utility to xv6-risc
+ * Sets the nice value for a command line utility and executes the command
+ * 
+ */
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
@@ -23,6 +31,7 @@ int main(int argc, char *argv[])
     {
         nicevalue = atoi(argv[1]);
     }
+    //make the nice system call with the nicevalue
     nice(nicevalue);
     if(argc < 3)
     printf("Too few arguments expected nice N PROG [ARG] ...\n");

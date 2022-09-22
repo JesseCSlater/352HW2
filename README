@@ -1,3 +1,16 @@
+Authors: John Mindrup & Jesse Slater
+Description: Added the following system calls; startlog, getlog, and nice. Added the nice command line utility.
+Added Files: kernel/log.h
+user/nice.c
+Changed Files: kernel/proc.c
+kernel/proc.h
+kernel/syscall.c
+kernel/syscall.h
+user/user.h
+user/usys.pl
+MAKEFILE
+
+
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
