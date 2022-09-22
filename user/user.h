@@ -1,5 +1,6 @@
 struct stat;
 struct rtcdate;
+struct logentry;
 
 // system calls
 int fork(void);
@@ -23,6 +24,10 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int startlog(void);
+int getlog(struct logentry*);
+int nice(int inc);
+
 
 // ulib.c
 int stat(const char*, struct stat*);
