@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
      */
     if(argv[1][0] == '-')
     {
-        nicevalue = atoi(argv[1]+1);
+        nicevalue = -1 * atoi(argv[1]+1);
     }
     else
     {
