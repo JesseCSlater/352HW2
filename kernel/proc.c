@@ -177,6 +177,9 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  
+  // Initialize runtime of new proc to 0
+  p->runtime = 0; 
 
   // Initialize nice value of new proc to 0
   p->nice = 0;

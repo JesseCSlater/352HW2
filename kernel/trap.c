@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "log.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -15,6 +16,8 @@ extern char trampoline[], uservec[], userret[];
 void kernelvec();
 
 extern int devintr();
+
+int time;
 
 void
 trapinit(void)
@@ -77,9 +80,10 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    time++;
     yield();
-
+  }
   usertrapret();
 }
 
@@ -150,6 +154,9 @@ kerneltrap()
     panic("kerneltrap");
   }
 
+  // increment time if this is a timer interrupt.
+  if(which_dev == 2)
+    time++;
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
     yield();
