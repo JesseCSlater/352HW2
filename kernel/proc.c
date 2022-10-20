@@ -69,7 +69,11 @@ sys_startlog(void)
  */
 int qnonempty(int h)
 {
-  return (h+1) - qtable[h].next;
+  qentry head = qtable[h];
+  int temp = head.next;
+  head.next = 0;
+  head.next = temp;
+  return (h+1) - head.next;
 }
 
 int qisempty(int h)
@@ -143,12 +147,8 @@ int enqueue(int h, int id)
   qtable[id].prev = h;
   qtable[qtable[id].next].prev = id;
   int qid = h - NPROC;
-  if(qid < 2)
-    qtable[id].queue = 1;
-  else if(qid < 4)
-    qtable[id].queue = 2;
-  else if(qid < 6)
-    qtable[id].queue = 3;
+  qid = (qid / 2) + 1;
+  qtable[id].queue = qid;
   return 0;
 }
 /**
@@ -431,6 +431,9 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  //enqueue process into the first queue addressed by NPROC
+  uint64 pindex = p - proc; 
+  enqueue(NPROC,pindex);
 
   release(&p->lock);
 }
@@ -501,6 +504,8 @@ fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  uint64 pindex = np - proc; 
+  enqueue(NPROC, pindex);
   release(&np->lock);
 
   return pid;
@@ -633,7 +638,10 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(p = proc; p < &proc[NPROC]; p++) {
+    while(qnonempty(NPROC)){
+      //dequeue the first queue
+      p = proc + dequeue(NPROC);
+    //for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
         // Log the process switch
@@ -696,6 +704,8 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  uint64 pindex = p - proc; 
+  enqueue(NPROC, pindex);
   ticktimer += 1;
   sched();
   release(&p->lock);
@@ -765,6 +775,8 @@ wakeup(void *chan)
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
+        uint64 pindex = p - proc; 
+        enqueue(NPROC, pindex);
       }
       release(&p->lock);
     }
@@ -786,6 +798,8 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+        uint64 pindex = p - proc; 
+        enqueue(NPROC, pindex);
       }
       release(&p->lock);
       return 0;
