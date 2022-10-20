@@ -7,6 +7,20 @@
 #include "defs.h"
 #include "log.h"
 
+#define MAX_UINT64 (-1) 
+#define EMPTY MAX_UINT64 
+#define NUM_QUEUES 3 
+ 
+// a node of the linked list 
+struct qentry { 
+    uint64 queue; // used to store the queue level 
+    uint64 prev; // index of previous qentry in list 
+    uint64 next; // index of next qentry in list 
+}typedef qentry;
+ 
+// a fixed size table where the index of a process in proc[] is the same in qtable[] 
+struct qentry qtable[NPROC + 2*NUM_QUEUES]; 
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -44,6 +58,115 @@ sys_startlog(void)
   is_logging = 1;  
   return 0;
 } 
+
+/**
+ * @brief 
+ * 
+ * @param h 
+ * the index of the head of the queue
+ * @return int 
+ * return 0 if head.next is equal to the index of the queue's tail ie h+1
+ */
+int qnonempty(int h)
+{
+  return (h+1) - qtable[h].next;
+}
+
+int qisempty(int h)
+{
+  if(qnonempty(h))
+    return 0;
+  return 1;
+}
+
+/**
+ * @brief 
+ * removes & returns the last element of an array
+ * 
+ * @param h 
+ * head index of the array you are accessing
+ * @return int 
+ */
+qentry qgetfirst(int h)
+{
+  qentry ret = qtable[qtable[h].next];
+  qtable[ret.next].prev = h;
+  qtable[h].next = ret.next;
+  return ret;
+}
+/**
+ * @brief 
+ * removes & returns the last element of an array
+ * 
+ * @param h 
+ * head index of the array you are accessing
+ * @return int 
+ */
+qentry qgetlast(int h)
+{
+  qentry ret = qtable[qtable[h+1].prev];
+  qtable[ret.prev].next = h+1;
+  qtable[h+1].prev = ret.prev;
+  return ret;
+}
+/**
+ * @brief 
+ * returns arbitrary node ind from the queue
+ * @param h 
+ * @param ind 
+ * @return qentry 
+ */
+qentry qgetitem(int h, int ind)
+{
+  qentry ret = qtable[h];
+  for(int i = 0 ; i < ind; i++)
+  {
+    ret = qtable[ret.next];
+  }
+  qtable[ret.prev].next = ret.next;
+  qtable[ret.next].prev = ret.prev;
+  return ret;
+}
+/**
+ * @brief 
+ * enqueues an item to the front of the queue
+ * @param h 
+ * id of the head of the queue
+ * @param id 
+ * index of the proc to insert
+ * @return int 
+ */
+int enqueue(int h, int id)
+{
+  qtable[id].next = qtable[h].next;
+  qtable[h].next = id;
+  qtable[id].prev = h;
+  qtable[qtable[id].next].prev = id;
+  int qid = h - NPROC;
+  if(qid < 2)
+    qtable[id].queue = 1;
+  else if(qid < 4)
+    qtable[id].queue = 2;
+  else if(qid < 6)
+    qtable[id].queue = 3;
+  return 0;
+}
+/**
+ * @brief 
+ * removes the last element of the queue
+ * 
+ * @param h 
+ * index of the head of the queue to dequeue
+ * @return int 
+ */
+int dequeue(int h)
+{
+  qentry ret = qtable[qtable[h+1].prev];
+  int ret1 = qtable[h+1].prev;
+  qtable[h+1].prev = ret.prev;
+  qtable[ret.prev].next = h+1;
+  return ret1;
+}
  
 uint64 
 sys_getlog(void) { 
