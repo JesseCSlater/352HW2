@@ -69,11 +69,7 @@ sys_startlog(void)
  */
 int qnonempty(int h)
 {
-  qentry head = qtable[h];
-  int temp = head.next;
-  head.next = 0;
-  head.next = temp;
-  return (h+1) - head.next;
+  return (h+1) != qtable[h].next;
 }
 
 int qisempty(int h)
@@ -133,7 +129,7 @@ qentry qgetitem(int h, int ind)
 }
 /**
  * @brief 
- * enqueues an item to the front of the queue
+ * enqueues an item to the front of the queue with head h
  * @param h 
  * id of the head of the queue
  * @param id 
@@ -151,6 +147,7 @@ int enqueue(int h, int id)
   qtable[id].queue = qid;
   return 0;
 }
+
 /**
  * @brief 
  * removes the last element of the queue
@@ -167,7 +164,48 @@ int dequeue(int h)
   qtable[ret.prev].next = h+1;
   return ret1;
 }
- 
+
+
+/**
+ * @brief 
+ * enqueues an item to the front of the queue by qid
+ * @param qid
+ * @param id 
+ * index of the proc to insert
+ * @return int 
+ */
+int enqueue_by_qid(int qid, int id)
+{
+  return enqueue(NPROC + 2 * qid, id);
+}
+
+/**
+ * @brief 
+ * dequeues an item from the back of the queue by qid
+ * @param qid 
+ * @return int 
+ */
+int dequeue_by_qid(int qid)
+{
+  return dequeue(NPROC + 2 * qid);
+}
+
+/**
+ * @brief 
+ * calculates the qid that a process should be added to based on its nice value
+ * @param id 
+ * @return int 
+ */
+int calculate_qid(int id)
+{
+  int nice = proc[id].nice;
+  int qid;
+  if (nice <= -10) qid = 2;
+  else if (nice <= 10) qid = 1;
+  else qid = 0;
+  return qid;
+}
+
 uint64 
 sys_getlog(void) { 
     uint64 userlog; // hold the virtual (user) address of 
@@ -189,7 +227,7 @@ sys_getlog(void) {
 int 
 sys_nice(void) { 
   int inc; // the increment 
-  // set inc to the argument passed by the user 
+  //set inc to the argument passed by the user 
   argint(0, &inc); 
  
   // get the current user process 
@@ -199,6 +237,9 @@ sys_nice(void) {
   //clamp value to range
   if (p->nice > 19) p->nice = 19;
   if (p->nice < -20) p->nice = -20;
+
+  //TODO figure out how do deque it first
+  enqueue_by_qid(calculate_qid(p-proc), proc);
   
   return p->nice;
 }
@@ -232,6 +273,14 @@ procinit(void)
       initlock(&p->lock, "proc");
       p->kstack = KSTACK((int) (p - proc));
   }
+
+  //hijack to initialize qtable
+  qtable[NPROC].next = NPROC + 1;
+  qtable[NPROC + 1].prev = NPROC;
+  qtable[NPROC + 2].next = NPROC + 3;
+  qtable[NPROC + 3].prev = NPROC + 2;
+  qtable[NPROC + 4].next = NPROC + 5;
+  qtable[NPROC + 5].prev = NPROC + 6;
 }
 
 // Must be called with interrupts disabled,
@@ -433,7 +482,7 @@ userinit(void)
   p->state = RUNNABLE;
   //enqueue process into the first queue addressed by NPROC
   uint64 pindex = p - proc; 
-  enqueue(NPROC,pindex);
+  enqueue_by_qid(calculate_qid(pindex), pindex);
 
   release(&p->lock);
 }
@@ -505,7 +554,7 @@ fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   uint64 pindex = np - proc; 
-  enqueue(NPROC, pindex);
+  enqueue_by_qid(calculate_qid(pindex), pindex);
   release(&np->lock);
 
   return pid;
@@ -620,6 +669,21 @@ wait(uint64 addr)
   }
 }
 
+/**
+ * @brief 
+ * returns how long the quanta is for a process in a given queue
+ * @param qid 
+ * @return int 
+ */
+int queue_quanta(int qid){
+  switch (qid){
+    case 0: return 15; 
+    case 1: return 10;
+    case 2: return 1;
+    default: return 1;
+  }
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -632,41 +696,75 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+  int p_qid;
+  int pid;
+  int quanta_not_elapsed = 0;
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    while(qnonempty(NPROC)){
-      //dequeue the first queue
-      p = proc + dequeue(NPROC);
-    //for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Log the process switch
-        schedlog[next_log_index].pid = p->pid;
-        schedlog[next_log_index].time = ticktimer;
-        next_log_index += 1;
-        // Stop logging if buffer is full
-        if (next_log_index == LOG_SIZE) {
-          is_logging = 0;
-          //TODO figure out if this should reset next_log_index
-        }
-
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
-      release(&p->lock);
+    if (time % 60 == 0){
+      quanta_not_elapsed = 0;
+      //TODO figure out how to do a priority boost
     }
+    if (quanta_not_elapsed);
+    else if (qnonempty(NPROC+4)) {
+      p = proc + dequeue_by_qid(2);
+      p_qid = 2;
+    }
+    else if (qnonempty(NPROC+2)) {
+      p = proc + dequeue_by_qid(1);
+      p_qid = 1;
+    }
+    else if (qnonempty(NPROC)) {
+      p = proc + dequeue_by_qid(0) ;
+      p_qid = 0;
+    }
+    else continue;
+    acquire(&p->lock);
+    pid = p - proc;
+    if(p->state == RUNNABLE) {
+      printf("\npid %d, qid %d, q_n_e %d\n", p - proc, p_qid, quanta_not_elapsed);
+
+      // Log the process switch
+      schedlog[next_log_index].pid = p->pid;
+      schedlog[next_log_index].time = ticktimer;
+      next_log_index += 1;
+      // Stop logging if buffer is full
+      if (next_log_index == LOG_SIZE) {
+        is_logging = 0;
+        //TODO figure out if this should reset next_log_index
+      }
+
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      p->state = RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
+      p->runtime++;
+      if (p->state == RUNNABLE){
+        if (p->runtime >= queue_quanta(p_qid)) {
+          if (p_qid == 0) enqueue_by_qid(0, pid);
+          else enqueue_by_qid(p_qid - 1, pid);
+          p->runtime = 0;
+          quanta_not_elapsed = 0;
+        }
+        else quanta_not_elapsed = 1;
+      }
+      else {
+        quanta_not_elapsed = 0;
+      }
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    else {
+      quanta_not_elapsed = 0;
+      enqueue_by_qid(0, pid);
+    }
+    release(&p->lock);
   }
 }
 
@@ -705,7 +803,7 @@ yield(void)
   acquire(&p->lock);
   p->state = RUNNABLE;
   uint64 pindex = p - proc; 
-  enqueue(NPROC, pindex);
+  enqueue_by_qid(calculate_qid(pindex), pindex);
   ticktimer += 1;
   sched();
   release(&p->lock);
@@ -776,7 +874,7 @@ wakeup(void *chan)
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
         uint64 pindex = p - proc; 
-        enqueue(NPROC, pindex);
+        enqueue_by_qid(calculate_qid(pindex), pindex);
       }
       release(&p->lock);
     }
@@ -799,7 +897,7 @@ kill(int pid)
         // Wake process from sleep().
         p->state = RUNNABLE;
         uint64 pindex = p - proc; 
-        enqueue(NPROC, pindex);
+        enqueue_by_qid(calculate_qid(pindex), pindex);
       }
       release(&p->lock);
       return 0;
