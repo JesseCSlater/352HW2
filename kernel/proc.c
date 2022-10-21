@@ -116,13 +116,9 @@ qentry qgetlast(int h)
  * @param ind 
  * @return qentry 
  */
-qentry qgetitem(int h, int ind)
+qentry qgetitem(int ind)
 {
-  qentry ret = qtable[h];
-  for(int i = 0 ; i < ind; i++)
-  {
-    ret = qtable[ret.next];
-  }
+  qentry ret = qtable[ind];
   qtable[ret.prev].next = ret.next;
   qtable[ret.next].prev = ret.prev;
   return ret;
@@ -206,6 +202,58 @@ int calculate_qid(int id)
   return qid;
 }
 
+int priority_boost()
+{
+  qentry cur = qtable[NPROC];
+  while(cur.next != NPROC + 1)
+  {
+    if(qtable[cur.next].queue != calculate_qid(cur.next))
+    {
+      qgetitem(cur.next);
+      enqueue(calculate_qid(cur.next), cur.next);
+    }
+    cur = qtable[cur.next];
+  }
+  if(cur.prev != NPROC && qtable[cur.next].queue != calculate_qid(cur.next))
+  {
+    qgetitem(cur.next);
+    enqueue(calculate_qid(cur.next), cur.next);
+  }
+  cur = qtable[NPROC + 2];
+  while(cur.next != NPROC + 3)
+  {
+    if(qtable[cur.next].queue != calculate_qid(cur.next))
+    {
+      qgetitem(cur.next);
+      enqueue(calculate_qid(cur.next), cur.next);
+    }
+    cur = qtable[cur.next];
+  }
+  if(cur.prev != NPROC+2 && qtable[cur.next].queue != calculate_qid(cur.next))
+  {
+    qgetitem(cur.next);
+    enqueue(calculate_qid(cur.next), cur.next);
+  }
+  cur = qtable[NPROC + 4];
+  while(cur.next != NPROC + 5)
+  {
+    if(qtable[cur.next].queue != calculate_qid(cur.next))
+    {
+      qgetitem(cur.next);
+      enqueue(calculate_qid(cur.next), cur.next);
+    }
+    cur = qtable[cur.next];
+  }
+  if(cur.prev != NPROC + 4 && qtable[cur.next].queue != calculate_qid(cur.next))
+  {
+    qgetitem(cur.next);
+    enqueue(calculate_qid(cur.next), cur.next);
+  }
+  
+
+  return 0;
+}
+
 uint64 
 sys_getlog(void) { 
     uint64 userlog; // hold the virtual (user) address of 
@@ -239,7 +287,8 @@ sys_nice(void) {
   if (p->nice < -20) p->nice = -20;
 
   //TODO figure out how do deque it first
-  enqueue_by_qid(calculate_qid(p-proc), proc);
+  uint64 pindex = p - proc; 
+  enqueue_by_qid(calculate_qid(p-proc), pindex);
   
   return p->nice;
 }
@@ -706,6 +755,7 @@ scheduler(void)
 
     if (time % 60 == 0){
       quanta_not_elapsed = 0;
+      priority_boost();
       //TODO figure out how to do a priority boost
     }
     if (quanta_not_elapsed);
