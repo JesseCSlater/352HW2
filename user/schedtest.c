@@ -17,7 +17,7 @@ void test1(){
     uint64 acc = 0; 
     startlog();
     for (uint64 i=0; i<1000000; i++) { 
-        acc += i; 
+        acc += 1; 
     }
     int n = getlog(&log[0]);
     for (int i=0; i < n; i++){
@@ -28,7 +28,28 @@ void test1(){
 }
 
 void test2(){
-    printf("test2");
+    int f = fork();
+    nice(-19);
+    struct logentry log[100];
+    uint64 acc = 0; 
+    startlog();
+    if (f == 0) {
+        for (uint64 i=0; i<1000000; i++) { 
+            acc += 1; 
+        }
+    }
+    else {
+        for (uint64 i=0; i<1000; i++) { 
+            sleep(.01); 
+            acc += 1;
+        } 
+    }
+    int n = getlog(&log[0]);
+    for (int i=0; i < n; i++){
+        printf("pid %d, time %d\n", log[i].pid, log[i].time);
+    }
+    printf("acc %d\n", acc);
+    exit(0);
 }
 
 int main(int argc, char *argv[])
