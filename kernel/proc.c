@@ -239,7 +239,10 @@ sys_nice(void) {
   if (p->nice < -20) p->nice = -20;
 
   //TODO figure out how do deque it first
-  enqueue_by_qid(calculate_qid(p-proc), proc);
+  qentry temp = qtable[p-proc];
+  qtable[temp.next].prev = temp.prev;
+  qtable[temp.prev].next = temp.next;
+  enqueue_by_qid(calculate_qid(p-proc), p-proc);
   
   return p->nice;
 }
