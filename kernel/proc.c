@@ -287,7 +287,6 @@ sys_nice(void) {
   if (p->nice > 19) p->nice = 19;
   if (p->nice < -20) p->nice = -20;
 
-  //TODO figure out how do deque it first
   uint64 pindex = p - proc; 
   qgetitem(pindex);
   enqueue_by_qid(calculate_qid(p-proc), pindex);
@@ -755,11 +754,9 @@ scheduler(void)
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
     if (time % 60 == 0){
       quanta_not_elapsed = 0;
       priority_boost();
-      //TODO figure out how to do a priority boost
     }
     if (quanta_not_elapsed);
     else if (qnonempty(NPROC+4)) {
@@ -778,7 +775,7 @@ scheduler(void)
     acquire(&p->lock);
     pid = p - proc;
     if(p->state == RUNNABLE) {
-      printf("\npid %d, qid %d, q_n_e %d\n", pid, p_qid, quanta_not_elapsed);
+      //printf("\npid %d, qid %d, q_n_e %d\n", pid, p_qid, quanta_not_elapsed);
 
       // Log the process switch
       schedlog[next_log_index].pid = p->pid;
@@ -787,7 +784,6 @@ scheduler(void)
       // Stop logging if buffer is full
       if (next_log_index == LOG_SIZE) {
         is_logging = 0;
-        //TODO figure out if this should reset next_log_index
       }
 
       // Switch to chosen process.  It is the process's job
@@ -797,7 +793,7 @@ scheduler(void)
       c->proc = p;
       swtch(&c->context, &p->context);
       p->runtime++;
-      /*
+      /* 
       if (p->state == RUNNABLE){
         if (p->runtime >= queue_quanta(p_qid)) {
           if (p_qid == 0) enqueue_by_qid(0, pid);
@@ -811,9 +807,11 @@ scheduler(void)
         }
       }
       else {
+        enqueue_by_qid()
         quanta_not_elapsed = 0;
       }
       */
+     
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
