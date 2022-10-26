@@ -289,7 +289,7 @@ sys_nice(void) {
 
   uint64 pindex = p - proc; 
   qgetitem(pindex);
-  enqueue_by_qid(calculate_qid(p-proc), pindex);
+  enqueue(calculate_qid(p-proc), pindex);
   
   return p->nice;
 }
@@ -747,8 +747,8 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  int p_qid;
-  int pid;
+  //int p_qid;
+  //int pid;
   int quanta_not_elapsed = 0;
   c->proc = 0;
   for(;;){
@@ -761,19 +761,19 @@ scheduler(void)
     if (quanta_not_elapsed);
     else if (qnonempty(NPROC+4)) {
       p = proc + dequeue_by_qid(2);
-      p_qid = 2;
+      //p_qid = 2;
     }
     else if (qnonempty(NPROC+2)) {
       p = proc + dequeue_by_qid(1);
-      p_qid = 1;
+      //p_qid = 1;
     }
     else if (qnonempty(NPROC)) {
       p = proc + dequeue_by_qid(0) ;
-      p_qid = 0;
+      //p_qid = 0;
     }
     else continue;
     acquire(&p->lock);
-    pid = p - proc;
+    //pid = p - proc;
     if(p->state == RUNNABLE) {
       //printf("\npid %d, qid %d, q_n_e %d\n", pid, p_qid, quanta_not_elapsed);
 
