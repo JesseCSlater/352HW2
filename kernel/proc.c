@@ -116,13 +116,9 @@ qentry qgetlast(int h)
  * @param ind 
  * @return qentry 
  */
-qentry qgetitem(int h, int ind)
+qentry qgetitem(int ind)
 {
-  qentry ret = qtable[h];
-  for(int i = 0 ; i < ind; i++)
-  {
-    ret = qtable[ret.next];
-  }
+  qentry ret = qtable[ind];
   qtable[ret.prev].next = ret.next;
   qtable[ret.next].prev = ret.prev;
   return ret;
@@ -206,6 +202,59 @@ int calculate_qid(int id)
   return qid;
 }
 
+int priority_boost()
+{
+  volatile qentry cur = qtable[NPROC];
+  while(cur.next != NPROC + 1)
+  {
+    if(qtable[cur.next].queue != calculate_qid(cur.next))
+    {
+      qgetitem(cur.next);
+      enqueue(calculate_qid(cur.next), cur.next);
+      
+    }
+    cur = qtable[cur.next];
+  }
+  if(qtable[cur.next].prev != NPROC && qtable[cur.next].queue != calculate_qid(cur.next))
+  {
+    qgetitem(cur.next);
+    enqueue(calculate_qid(cur.next), cur.next);
+  }
+  cur = qtable[NPROC + 2];
+  while(cur.next != NPROC + 3)
+  {
+    if(qtable[cur.next].queue != calculate_qid(cur.next))
+    {
+      qgetitem(cur.next);
+      enqueue(calculate_qid(cur.next), cur.next);
+    }
+    cur = qtable[cur.next];
+  }
+  if(qtable[cur.next].prev != NPROC+2 && qtable[cur.next].queue != calculate_qid(cur.next))
+  {
+    qgetitem(cur.next);
+    enqueue(calculate_qid(cur.next), cur.next);
+  }
+  cur = qtable[NPROC + 4];
+  while(cur.next != NPROC + 5)
+  {
+    if(qtable[cur.next].queue != calculate_qid(cur.next))
+    {
+      qgetitem(cur.next);
+      enqueue(calculate_qid(cur.next), cur.next);
+    }
+    cur = qtable[cur.next];
+  }
+  if(qtable[cur.next].prev != NPROC + 4 && qtable[cur.next].queue != calculate_qid(cur.next))
+  {
+    qgetitem(cur.next);
+    enqueue(calculate_qid(cur.next), cur.next);
+  }
+  
+
+  return 0;
+}
+
 uint64 
 sys_getlog(void) { 
     uint64 userlog; // hold the virtual (user) address of 
@@ -239,10 +288,9 @@ sys_nice(void) {
   if (p->nice < -20) p->nice = -20;
 
   //TODO figure out how do deque it first
-  qentry temp = qtable[p-proc];
-  qtable[temp.next].prev = temp.prev;
-  qtable[temp.prev].next = temp.next;
-  enqueue_by_qid(calculate_qid(p-proc), p-proc);
+  uint64 pindex = p - proc; 
+  qgetitem(pindex);
+  enqueue_by_qid(calculate_qid(p-proc), pindex);
   
   return p->nice;
 }
@@ -283,7 +331,7 @@ procinit(void)
   qtable[NPROC + 2].next = NPROC + 3;
   qtable[NPROC + 3].prev = NPROC + 2;
   qtable[NPROC + 4].next = NPROC + 5;
-  qtable[NPROC + 5].prev = NPROC + 6;
+  qtable[NPROC + 5].prev = NPROC + 4;
 }
 
 // Must be called with interrupts disabled,
@@ -557,7 +605,8 @@ fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   uint64 pindex = np - proc; 
-  enqueue_by_qid(calculate_qid(pindex), pindex);
+  int properQueueId = calculate_qid(pindex);
+  enqueue_by_qid(properQueueId, pindex);
   release(&np->lock);
 
   return pid;
@@ -709,6 +758,7 @@ scheduler(void)
 
     if (time % 60 == 0){
       quanta_not_elapsed = 0;
+      priority_boost();
       //TODO figure out how to do a priority boost
     }
     if (quanta_not_elapsed);
@@ -728,7 +778,7 @@ scheduler(void)
     acquire(&p->lock);
     pid = p - proc;
     if(p->state == RUNNABLE) {
-      printf("\npid %d, qid %d, q_n_e %d\n", p - proc, p_qid, quanta_not_elapsed);
+      printf("\npid %d, qid %d, q_n_e %d\n", pid, p_qid, quanta_not_elapsed);
 
       // Log the process switch
       schedlog[next_log_index].pid = p->pid;
@@ -747,6 +797,7 @@ scheduler(void)
       c->proc = p;
       swtch(&c->context, &p->context);
       p->runtime++;
+      /*
       if (p->state == RUNNABLE){
         if (p->runtime >= queue_quanta(p_qid)) {
           if (p_qid == 0) enqueue_by_qid(0, pid);
@@ -754,19 +805,20 @@ scheduler(void)
           p->runtime = 0;
           quanta_not_elapsed = 0;
         }
-        else quanta_not_elapsed = 1;
+        else 
+        {
+          quanta_not_elapsed = 1;
+        }
       }
       else {
         quanta_not_elapsed = 0;
       }
+      */
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    else {
-      quanta_not_elapsed = 0;
-      enqueue_by_qid(0, pid);
-    }
+    
     release(&p->lock);
   }
 }
@@ -805,7 +857,7 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
-  uint64 pindex = p - proc; 
+  uint64 pindex = p - proc;
   enqueue_by_qid(calculate_qid(pindex), pindex);
   ticktimer += 1;
   sched();
