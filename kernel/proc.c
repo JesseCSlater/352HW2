@@ -69,7 +69,8 @@ sys_startlog(void)
  */
 int qnonempty(int h)
 {
-  return (h+1) != qtable[h].next;
+  volatile int val = h;
+  return (h+1) != qtable[val].next;
 }
 
 int qisempty(int h)
@@ -289,7 +290,7 @@ sys_nice(void) {
 
   uint64 pindex = p - proc; 
   qgetitem(pindex);
-  enqueue(calculate_qid(p-proc), pindex);
+  enqueue_by_qid(calculate_qid(pindex), pindex);
   
   return p->nice;
 }
