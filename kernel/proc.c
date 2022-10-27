@@ -298,9 +298,9 @@ sys_nice(void) {
   if (p->nice > 19) p->nice = 19;
   if (p->nice < -20) p->nice = -20;
 
-  uint64 pindex = p - proc; 
+  //uint64 pindex = p - proc; 
   //qgetitem(pindex);
-  enqueue_by_qid(calculate_qid(pindex), pindex);
+  //enqueue_by_qid(calculate_qid(pindex), pindex);
   
   return p->nice;
 }
