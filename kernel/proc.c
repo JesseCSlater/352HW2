@@ -161,6 +161,7 @@ int enqueue(int h, int id)
   int qid = h - NPROC;
   qid = calculate_qid(id);
   qtable[id].queue = qid;
+  return 1;
   }
   return 0;
 }
@@ -298,9 +299,8 @@ sys_nice(void) {
   if (p->nice > 19) p->nice = 19;
   if (p->nice < -20) p->nice = -20;
 
-  uint64 pindex = p - proc; 
-  //qgetitem(pindex);
-  enqueue_by_qid(calculate_qid(pindex), pindex);
+  //uint64 pindex = p - proc; 
+  //enqueue_by_qid(calculate_qid(pindex), pindex);
   
   return p->nice;
 }
