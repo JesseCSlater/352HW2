@@ -24,7 +24,6 @@ void test1(){
         printf("pid %d, time %d\n", log[i].pid, log[i].time);
     }
     printf("acc %d\n", acc);
-    exit(0);
 }
 
 void test2(){
@@ -33,7 +32,7 @@ void test2(){
     struct logentry log[100];
     uint64 acc = 0; 
     startlog();
-    if (f == 0) {
+    if (f != 0) {
         for (uint64 i=0; i<1000000; i++) { 
             acc += 1; 
         }
@@ -49,7 +48,6 @@ void test2(){
         printf("pid %d, time %d\n", log[i].pid, log[i].time);
     }
     printf("acc %d\n", acc);
-    exit(0);
 }
 
 int main(int argc, char *argv[])
