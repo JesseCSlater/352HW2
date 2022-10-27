@@ -124,6 +124,23 @@ qentry qgetitem(int ind)
   qtable[ret.next].prev = ret.prev;
   return ret;
 }
+
+/**
+ * @brief 
+ * calculates the qid that a process should be added to based on its nice value
+ * @param id 
+ * @return int 
+ */
+int calculate_qid(int id)
+{
+  int nice = proc[id].nice;
+  int qid;
+  if (nice <= -10) qid = 2;
+  else if (nice <= 10) qid = 1;
+  else qid = 0;
+  return qid;
+}
+
 /**
  * @brief 
  * enqueues an item to the front of the queue with head h
@@ -135,13 +152,16 @@ qentry qgetitem(int ind)
  */
 int enqueue(int h, int id)
 {
+  if(qtable[h].next != id)
+  {
   qtable[id].next = qtable[h].next;
   qtable[h].next = id;
   qtable[id].prev = h;
   qtable[qtable[id].next].prev = id;
   int qid = h - NPROC;
-  qid = (qid / 2) + 1;
+  qid = calculate_qid(id);
   qtable[id].queue = qid;
+  }
   return 0;
 }
 
@@ -187,22 +207,6 @@ int dequeue_by_qid(int qid)
   return dequeue(NPROC + 2 * qid);
 }
 
-/**
- * @brief 
- * calculates the qid that a process should be added to based on its nice value
- * @param id 
- * @return int 
- */
-int calculate_qid(int id)
-{
-  int nice = proc[id].nice;
-  int qid;
-  if (nice <= -10) qid = 2;
-  else if (nice <= 10) qid = 1;
-  else qid = 0;
-  return qid;
-}
-
 int priority_boost()
 {
   volatile qentry cur = qtable[NPROC];
@@ -210,46 +214,52 @@ int priority_boost()
   {
     if(qtable[cur.next].queue != calculate_qid(cur.next))
     {
+      int temp = cur.next;
       qgetitem(cur.next);
-      enqueue(calculate_qid(cur.next), cur.next);
+      enqueue(calculate_qid(temp), temp);
       
     }
     cur = qtable[cur.next];
   }
   if(qtable[cur.next].prev != NPROC && qtable[cur.next].queue != calculate_qid(cur.next))
   {
+    int temp = cur.next;
     qgetitem(cur.next);
-    enqueue(calculate_qid(cur.next), cur.next);
+    enqueue(calculate_qid(temp), temp);
   }
   cur = qtable[NPROC + 2];
   while(cur.next != NPROC + 3)
   {
     if(qtable[cur.next].queue != calculate_qid(cur.next))
     {
+      int temp = cur.next;
       qgetitem(cur.next);
-      enqueue(calculate_qid(cur.next), cur.next);
+      enqueue(calculate_qid(temp), temp);
     }
     cur = qtable[cur.next];
   }
   if(qtable[cur.next].prev != NPROC+2 && qtable[cur.next].queue != calculate_qid(cur.next))
   {
+    int temp = cur.next;
     qgetitem(cur.next);
-    enqueue(calculate_qid(cur.next), cur.next);
+    enqueue(calculate_qid(temp), temp);
   }
   cur = qtable[NPROC + 4];
   while(cur.next != NPROC + 5)
   {
     if(qtable[cur.next].queue != calculate_qid(cur.next))
     {
+      int temp = cur.next;
       qgetitem(cur.next);
-      enqueue(calculate_qid(cur.next), cur.next);
+      enqueue(calculate_qid(temp), temp);
     }
     cur = qtable[cur.next];
   }
   if(qtable[cur.next].prev != NPROC + 4 && qtable[cur.next].queue != calculate_qid(cur.next))
   {
+    int temp = cur.next;
     qgetitem(cur.next);
-    enqueue(calculate_qid(cur.next), cur.next);
+    enqueue(calculate_qid(temp), temp);
   }
   
 
