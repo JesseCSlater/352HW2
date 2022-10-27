@@ -217,7 +217,7 @@ int priority_boost()
     {
       int temp = cur.next;
       qgetitem(cur.next);
-      enqueue(calculate_qid(temp), temp);
+      enqueue_by_qid(calculate_qid(temp), temp);
       
     }
     cur = qtable[cur.next];
@@ -226,7 +226,7 @@ int priority_boost()
   {
     int temp = cur.next;
     qgetitem(cur.next);
-    enqueue(calculate_qid(temp), temp);
+    enqueue_by_qid(calculate_qid(temp), temp);
   }
   cur = qtable[NPROC + 2];
   while(cur.next != NPROC + 3)
@@ -235,7 +235,7 @@ int priority_boost()
     {
       int temp = cur.next;
       qgetitem(cur.next);
-      enqueue(calculate_qid(temp), temp);
+      enqueue_by_qid(calculate_qid(temp), temp);
     }
     cur = qtable[cur.next];
   }
@@ -243,7 +243,7 @@ int priority_boost()
   {
     int temp = cur.next;
     qgetitem(cur.next);
-    enqueue(calculate_qid(temp), temp);
+    enqueue_by_qid(calculate_qid(temp), temp);
   }
   cur = qtable[NPROC + 4];
   while(cur.next != NPROC + 5)
@@ -252,7 +252,7 @@ int priority_boost()
     {
       int temp = cur.next;
       qgetitem(cur.next);
-      enqueue(calculate_qid(temp), temp);
+      enqueue_by_qid(calculate_qid(temp), temp);
     }
     cur = qtable[cur.next];
   }
@@ -260,7 +260,7 @@ int priority_boost()
   {
     int temp = cur.next;
     qgetitem(cur.next);
-    enqueue(calculate_qid(temp), temp);
+    enqueue_by_qid(calculate_qid(temp), temp);
   }
   
 
