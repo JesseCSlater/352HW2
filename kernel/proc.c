@@ -152,7 +152,7 @@ int calculate_qid(int id)
  */
 int enqueue(int h, int id)
 {
-  if(qtable[h].next != id)
+  if(qtable[h].next != id && id < NPROC)
   {
   qtable[id].next = qtable[h].next;
   qtable[h].next = id;

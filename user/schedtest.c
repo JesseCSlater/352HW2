@@ -16,7 +16,7 @@ void test1(){
     struct logentry log[100];
     uint64 acc = 0; 
     startlog();
-    for (uint64 i=0; i<1000000; i++) { 
+    for (uint64 i=0; i<900000000; i++) { 
         acc += 1; 
     }
     int n = getlog(&log[0]);
