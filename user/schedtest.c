@@ -24,6 +24,7 @@ void test1(){
         printf("pid %d, time %d\n", log[i].pid, log[i].time);
     }
     printf("acc %d\n", acc);
+    exit(0);
 }
 
 void test2(){
@@ -48,6 +49,7 @@ void test2(){
         printf("pid %d, time %d\n", log[i].pid, log[i].time);
     }
     printf("acc %d\n", acc);
+    exit(0);
 }
 
 int main(int argc, char *argv[])
