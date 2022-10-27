@@ -208,6 +208,13 @@ int dequeue_by_qid(int qid)
   return dequeue(NPROC + 2 * qid);
 }
 
+/**
+ * @brief 
+ * interates through each queue and boosts the priority of any process which has had its priority decreased
+ * 
+ * @return int 
+ * returns 0 on success
+ */
 int priority_boost()
 {
   volatile qentry cur = qtable[NPROC];
